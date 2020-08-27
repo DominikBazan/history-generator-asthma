@@ -5,18 +5,34 @@ import seasonsDates
 from joblib import Parallel, delayed
 import multiprocessing
 from database import dbConnection
+from csv import writer
 
 db = dbConnection()
 
 def generateUsersHistory():
     cursor = db.cursor(buffered=True)
 
+    ### Zakomentować dwie poniższe linijki jeśli nie chcę czyścić wcześniejszych wyników
+    
+    # open("CSV1.csv", 'w').close()
+    # open("CSV2.csv", 'w').close()
+    
+    ### Zakomentować trzy poniższe linijki jeśli nie chcę czyścić wcześniejszych wyników
+    
+    # header = ['id_user', 'date', 'avr14', 'avr5', 'W-1', 'negative_med_change', 'positive_med_change', 'max_dusting', 'rain', 'wind', 'temperature', 'W0', 'W0-avr14']
+    # appendLineToFile(header, "CSV1.csv")
+    # appendLineToFile(header, "CSV2.csv")
+
+    # wormup date
     wormupDate = seasonsDates.wormupDate
+    # start of 1st CSV
     winterStartDate2017 = seasonsDates.winterStartDate2017
-    winterStartDate = seasonsDates.winterStartDate
+    # start of 2nd CSV
+    winterStartDate2018 = seasonsDates.winterStartDate
+    # finish date
     winter2StartDate = seasonsDates.winter2StartDate
 
-    allWeather = getAllWeather()
+    allWeather, allWeatherValues = getAllWeather()
 
     cursor.execute("SELECT count(*) FROM users")
     res = cursor.fetchone()
@@ -25,29 +41,36 @@ def generateUsersHistory():
     # cursor.execute("SELECT u.id_user AS id_user, ct.id_control_test FROM users u LEFT JOIN controlTests ct ON (u.id_user=ct.id_user) WHERE ct.id_control_test IS NULL")
     cursor.execute("SELECT id_user FROM users u")
     
+    users = [id_user[0] for id_user in cursor]
+
+    for i in range(1,seasonsDates.N+1):
+        users.remove(i)
+
     num_cores = multiprocessing.cpu_count()
-    Parallel(n_jobs=num_cores)(delayed(processInputUsers)(id_user[0], wormupDate, winter2StartDate, numberOfUsers, allWeather) for id_user in cursor)
+    Parallel(n_jobs=num_cores)(delayed(processInputUsers)(id_user, wormupDate, winterStartDate2017, winterStartDate2018, winter2StartDate, numberOfUsers, allWeather, allWeatherValues) for id_user in users)
 
     cursor.close()
 
 
-def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, allWeather):
+def processInputUsers(idUser, wormupDate, winterStartDate2017, winterStartDate2018, winter2StartDate, numberOfUsers, allWeather, allWeatherValues):
     db = dbConnection()
 
-    today = winterStartDate
+    today = wormupDate
 
     thisUsersAllergiesNames = getThisUsersAllergiesNames(idUser)
 
     last14AsthmaResultsAfterDailyMedicinesQueue = []
+    last14AsthmaResultsQueue = []
     dosagesFrom5DaysBackQueue = []
     dosagesIdsFrom5DaysBackQueue = []
     dosageChangeQueue = []
+    dosageChangeLogQueue = []
     dosageIncreaseCounter = 0
     dosageDecreaseCounter = 0
 
-    controlTestList = []
-    medicineEventsList = []
-    trendsList = []
+    # controlTestList = []
+    # medicineEventsList = []
+    # trendsList = []
 
     # For each day in a time slot
     while today < winter2StartDate:
@@ -58,6 +81,34 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
         # print(str(dosageChangeQueue) + " dosageChangeQueue")
 
         todayStr = today.strftime("%Y-%m-%d")
+
+        # progress bar
+        # comment this for maximum speed
+        v = int((today - wormupDate).days / 750 * 100)
+        string = ""
+        for _ in range(v): string += "#"
+        for _ in range(100-v): string += " "
+        print(str(idUser) + " [" + string + "]")
+
+        if today == winterStartDate2017:
+            fileName = 'CSV1.csv'
+        elif today == winterStartDate2018:
+            fileName = 'CSV2.csv'
+
+        dailyDataLine = [idUser, todayStr, "", "", "", "", "", "", allWeatherValues[todayStr][0], allWeatherValues[todayStr][1], allWeatherValues[todayStr][2], "", ""]
+        
+        # counting number of both types of changes in dosageChangeLogQueue
+        positiveChange = 0
+        negativeChange = 0
+        for change in dosageChangeLogQueue:
+            if change[:1] == "+":
+                positiveChange += 1
+            elif change == "0":
+                pass
+            else:
+                negativeChange += 1
+        dailyDataLine[5] = negativeChange
+        dailyDataLine[6] = positiveChange
         
         # Condidions log
         # logTable = [idUser]  # LOG
@@ -74,6 +125,7 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
             if maxTodaysDustingPoints < todaysDustingPoints:
                 maxTodaysDustingPoints = todaysDustingPoints
         W -= maxTodaysDustingPoints
+        dailyDataLine[7] = maxTodaysDustingPoints
         # logTable.append(maxTodaysDustingPoints) # LOG
         
         # DONE 2. deszcz
@@ -178,9 +230,14 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
                 numberOfDosagesToIncrease = maxIncreasePossible
             dosageChangeQueue.append("+"+str(numberOfDosagesToIncrease))
             if len(dosageChangeQueue) > 5:
-                dosageChangeQueue.pop()
+                dosageChangeQueue.pop(0)
+            dosageChangeLogQueue.append("+"+str(numberOfDosagesToIncrease))
+            if len(dosageChangeLogQueue) > 5:
+                dosageChangeLogQueue.pop(0)
+
             dosageIncreaseCounter += 1
-            medicineEventsList.append((idUser, 1, todayStr, lastDosageId+numberOfDosagesToIncrease,))
+            # TODO ARCHIWIZACJA
+            # medicineEventsList.append((idUser, 1, todayStr, lastDosageId+numberOfDosagesToIncrease,))
             dosagesFrom5DaysBackQueue.append(str(int(lastDosageValue)+numberOfDosagesToIncrease))
             if len(dosagesFrom5DaysBackQueue) > 5:
                 dosagesFrom5DaysBackQueue.pop(0)
@@ -213,9 +270,13 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
                 numberOfDosagesToDecrease = numberOfDosagesToDecrease
             dosageChangeQueue.append("-"+str(numberOfDosagesToDecrease))
             if len(dosageChangeQueue) > 5:
-                dosageChangeQueue.pop()
+                dosageChangeQueue.pop(0)
+            dosageChangeLogQueue.append("-"+str(numberOfDosagesToDecrease))
+            if len(dosageChangeLogQueue) > 5:
+                dosageChangeLogQueue.pop(0)    
             dosageDecreaseCounter += 1
-            medicineEventsList.append((idUser, 1, todayStr, lastDosageId-numberOfDosagesToDecrease,))
+            # TODO ARCHIWIZACJA
+            # medicineEventsList.append((idUser, 1, todayStr, lastDosageId-numberOfDosagesToDecrease,))
             dosagesFrom5DaysBackQueue.append(str(int(lastDosageValue)-numberOfDosagesToDecrease))
             if len(dosagesFrom5DaysBackQueue) > 5:
                 dosagesFrom5DaysBackQueue.pop(0)
@@ -228,8 +289,12 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
             # too low dose OR too high dose OR stable situation
             dosageChangeQueue.append("0")
             if len(dosageChangeQueue) > 5:
-                dosageChangeQueue.pop()
-            medicineEventsList.append((idUser, 1, todayStr, lastDosageId,))
+                dosageChangeQueue.pop(0)
+            dosageChangeLogQueue.append("0")
+            if len(dosageChangeLogQueue) > 5:
+                dosageChangeLogQueue.pop(0)
+            # TODO ARCHIWIZACJA
+            # medicineEventsList.append((idUser, 1, todayStr, lastDosageId,))
             dosagesFrom5DaysBackQueue.append(lastDosageValue)
             if len(dosagesFrom5DaysBackQueue) > 5:
                 dosagesFrom5DaysBackQueue.pop(0)
@@ -250,8 +315,25 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
         if WMedicines > 25:
             WMedicines = 25
         if WMedicines < 5:
-            WMedicines = 5 
-        controlTestList.append((idUser, todayStr, W, WMedicines,))
+            WMedicines = 5
+        # TODO ARCHIWIZACJA 
+        # controlTestList.append((idUser, todayStr, W, WMedicines,))
+
+        # adding avr W14
+        dailyDataLine[2] = countArithmeticAverage(last14AsthmaResultsQueue)
+        # adding avr W5
+        dailyDataLine[3] = countArithmeticAverage(last14AsthmaResultsQueue[-5:])
+        # adding W to last14AsthmaResultsQueue
+        last14AsthmaResultsQueue.append(W)
+        if len(last14AsthmaResultsQueue) > 14:
+                last14AsthmaResultsQueue.pop(0)
+        # adding W-1
+        dailyDataLine[4] = last14AsthmaResultsQueue[-1]
+        # adding W0
+        dailyDataLine[11] = W
+        # adding W0-avr W14
+        dailyDataLine[12] = dailyDataLine[2] - W
+
         last14AsthmaResultsAfterDailyMedicinesQueue.append(WMedicines)
         if len(last14AsthmaResultsAfterDailyMedicinesQueue) > 14:
             last14AsthmaResultsAfterDailyMedicinesQueue.pop(0)
@@ -278,16 +360,23 @@ def processInputUsers(idUser, winterStartDate, winter2StartDate, numberOfUsers, 
                     trend = "+1"
             else:
                 trend = "0"
-        trendsList.append((idUser, todayStr, trend,))
+        # TODO ARCHIWIZACJA ?
+        # trendsList.append((idUser, todayStr, trend,))
     
         # logTable.append(trend)
     
-        today += timedelta(days=1)
+
+        # print(dailyDataLine)
+        if today >= winterStartDate2017:
+            appendLineToFile(dailyDataLine, fileName)
 
         # print("U: %s  Data: %s  W:[%s,%s]  Pylenie:%s Deszcz:%s Wiatr:%s Temp.:%s Zm. dawki: %s Zm.tend.: %s  Dosage: %s Trend: %s" % (logTable[0], todayStr, W, WMedicines, logTable[1], logTable[2], logTable[3], logTable[4], logTable[5], logTable[6], logTable[7], logTable[8]))   # LOG
 
-    print("Saving history to database... " + str(idUser))
-    dbSave(controlTestList, medicineEventsList, trendsList)
+        today += timedelta(days=1)
+
+    # print("Saving history to database... " + str(idUser))
+    # TODO ARCHIWIZACJA
+    # dbSave(controlTestList, medicineEventsList, trendsList)
 
     db.close()
 
@@ -306,6 +395,7 @@ def getAllWeather():
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT date, rain, wind, temperature FROM weather")
     allWeather = {}
+    allWeatherValues = {}
     for weatherRow in cursor:
         if int(weatherRow[1]) > 5:
             rain = True
@@ -319,9 +409,10 @@ def getAllWeather():
             temperature = True
         else:
             temperature = False
+        allWeatherValues[weatherRow[0].strftime("%Y-%m-%d")] = (weatherRow[1], weatherRow[2], weatherRow[3],)
         allWeather[weatherRow[0].strftime("%Y-%m-%d")] = (rain, wind, temperature,)
     cursor.close()
-    return allWeather
+    return allWeather, allWeatherValues
 
 def getTodaysDustingPointsForName(season36, allerieName):
     cursor = db.cursor(buffered=True)
@@ -367,16 +458,21 @@ def countArithmeticAverage(list):
         sum = sum + element
     return sum / len(list)
 
-def dbSave(controlTestsList, medicineEventsList, trendsList):
-    cursor = db.cursor()
-    for controlTest in controlTestsList:
-        cursor.execute("INSERT INTO controlTests (id_user, date, value, value_medicines) VALUES (%s, %s, %s, %s)", (controlTest[0], controlTest[1], controlTest[2], controlTest[3],))
-    for medicineEvents in medicineEventsList:
-        cursor.execute("INSERT INTO medicineEvents (id_user, implemented, date, id_dosage) VALUES (%s, %s, %s, %s)", (medicineEvents[0], medicineEvents[1], medicineEvents[2], medicineEvents[3],))
-    for trend in trendsList:
-        cursor.execute("INSERT INTO trends (id_user, date, trend) VALUES (%s, %s, %s)", (trend[0], trend[1], trend[2],))
-    db.commit()
-    cursor.close()
+# def dbSave(controlTestsList, medicineEventsList, trendsList):
+#     cursor = db.cursor()
+#     for controlTest in controlTestsList:
+#         cursor.execute("INSERT INTO controlTests (id_user, date, value, value_medicines) VALUES (%s, %s, %s, %s)", (controlTest[0], controlTest[1], controlTest[2], controlTest[3],))
+#     for medicineEvents in medicineEventsList:
+#         cursor.execute("INSERT INTO medicineEvents (id_user, implemented, date, id_dosage) VALUES (%s, %s, %s, %s)", (medicineEvents[0], medicineEvents[1], medicineEvents[2], medicineEvents[3],))
+#     for trend in trendsList:
+#         cursor.execute("INSERT INTO trends (id_user, date, trend) VALUES (%s, %s, %s)", (trend[0], trend[1], trend[2],))
+#     db.commit()
+#     cursor.close()
+
+def appendLineToFile(line, file_name):
+    with open(file_name, 'a+', newline='') as write_obj:
+        csv_writer = writer(write_obj)
+        csv_writer.writerow(line)
 
 def dbClose():
     db.close()

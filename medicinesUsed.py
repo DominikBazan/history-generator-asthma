@@ -10,9 +10,13 @@ db = dbConnection()
 
 def medicinesUsedInsert():
     cursor = db.cursor()
+    # cursor.execute("SELECT u.id_user AS id_user, ct.id_control_test FROM users u LEFT JOIN controlTests ct ON (u.id_user=ct.id_user) WHERE ct.id_control_test IS NULL")
     cursor.execute("SELECT id_user FROM users")
     users = [user[0] for user in cursor]
-
+    
+    for i in range(1,seasonsDates.N+1):
+        users.remove(i)
+    
     medicinesIds = getMedicinesIds()
 
     num_cores = multiprocessing.cpu_count()

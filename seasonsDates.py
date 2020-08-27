@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+N = 0
+
 wormupDate = date(2017, 12, 1)
 winterStartDate2017 = date(2017, 12, 21)
 

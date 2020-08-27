@@ -7,7 +7,14 @@ SELECT * FROM controlTests;
 SELECT * FROM allergies;
 SELECT * FROM weather;
 
+TRUNCATE TABLE users;
+TRUNCATE TABLE medicinesUsed;
+TRUNCATE TABLE allergies;
+
 -- wypisuje istotne dane z bazy 
+SELECT DISTINCT u.name AS name, ct.date AS date, ct.value AS W, ct.value_medicines AS WPrim, d.dosage AS dosage, w.temperature, w.wind, w.rain, t.trend AS trend FROM users u JOIN controlTests ct ON (u.id_user=ct.id_user) JOIN medicineEvents me ON (me.date=ct.date) JOIN dosages d ON (d.id_dosage=me.id_dosage) JOIN weather w ON (me.date=w.date) JOIN trends t ON (t.date=w.date) WHERE me.id_dosage=d.id_dosage AND u.id_user=t.id_user ORDER BY name, date DESC;
+
+-- rozpisanie powyższego
 SELECT DISTINCT u.name AS name, ct.date AS date, ct.value AS W, ct.value_medicines AS WPrim, d.dosage AS dosage, w.temperature, w.wind, w.rain, t.trend AS trend FROM users u JOIN controlTests ct ON (u.id_user=ct.id_user) JOIN medicineEvents me ON (me.date=ct.date) JOIN dosages d ON (d.id_dosage=me.id_dosage) JOIN weather w ON (me.date=w.date) JOIN trends t ON (t.date=w.date) WHERE me.id_dosage=d.id_dosage AND u.id_user=t.id_user ORDER BY name, date DESC;
 
 -- dostarcza id_user dla urzytkowników bez historii
