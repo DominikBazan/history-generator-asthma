@@ -1,5 +1,6 @@
 import time
 from db_operations import *
+from weather_and_asthma_factors import *
 from users import *
 from medicines import *
 from dosages import *
@@ -24,9 +25,16 @@ startTime = time.time()
 #> Set the number of users already generated in the seassonDates.py file.
 
 if 1:
+    print("Deleting all weather and asthma factors...")
+    truncateTableNamed("weather")
+    truncateTableNamed("asthmaFactors")
+    print("[1/7]Generating weather and asthma factors...")
+    weatherAndAsthmaFactorsInsert()
+
+if 1:
     print("Deleting all users...")
     truncateTableNamed("users")
-    print("[1/6]Generating users...")
+    print("[2/7]Generating users...")
     # meInsert()
     for _ in range(numberOfGeneratedUsers):
         userInsert()
@@ -38,7 +46,7 @@ if 1:
     # if 1:
     print("\nDeleting all allergies...")
     truncateTableNamed("allergies")
-    print("[2/6]Generating allergies...")
+    print("[3/7]Generating allergies...")
     allergiesInsert()
     allergies.dbClose()
     if not fastRun:
@@ -48,7 +56,7 @@ if 1:
     # if 0:
     print("\nDeleting all medicinesUsed...")
     truncateTableNamed("medicinesUsed")
-    print("[5/6]Generating medicinesUsed...")
+    print("[4/7]Generating medicinesUsed...")
     medicinesUsedInsert()
     medicinesUsed.dbClose()
     if not fastRun:
@@ -59,7 +67,7 @@ if 1:
 if 1:
     print("\nDeleting all medicines...")
     truncateTableNamed("medicines")
-    print("[3/6]Generating medicines...")
+    print("[5/7]Generating medicines...")
     medicinesInsert()
     medicines.dbClose()
     if not fastRun:
@@ -69,7 +77,7 @@ if 1:
 if 1:
     print("\nDeleting all dosages...")
     truncateTableNamed("dosages")
-    print("[4/6]Generating dosages...")
+    print("[6/7]Generating dosages...")
     dosagesInsert()
     dosages.dbClose()
     if not fastRun:
@@ -81,7 +89,7 @@ if 1:
     truncateTableNamed("controlTests")
     truncateTableNamed("medicineEvents")
     truncateTableNamed("trends")
-    print("[6/6]Generating users history...")
+    print("[7/7]Generating users history...")
     generateUsersHistory()
     # userHistory.dbClose()
     if not fastRun:
