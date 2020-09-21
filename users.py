@@ -8,8 +8,10 @@ from database import *
 
 db = dbConnection()
 
+usersToInsert = []
+
 def userInsert():
-    cursor = db.cursor()
+    # cursor = db.cursor()
 
     fake = Faker(['pl_PL'])
 
@@ -47,21 +49,17 @@ def userInsert():
 
     password = fake.password(length=10, special_chars=True, digits=True, upper_case=True, lower_case=True)
 
-    # TODO remove below line
-    pollen_asthma = "TRUE"
-    # TODO uncomment
-    # if randrange(2) == 0:
-    #     pollen_asthma = "TRUE"
-    # else:
-    #     pollen_asthma = "FALSE"
+    type = randrange(2)
 
-    # inserting random data
-    queryTemplate = "INSERT INTO users (name, surname, sex, email, birth, height, weight, disease_start, password, pollen_asthma) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, \"{}\", {})"
-    insertQuery = queryTemplate.format(v2Q(name), v2Q(surname), v2Q(sex), v2Q(email), v2Q(birth), height, weight, v2Q(disease_start), "$2a$12$VDzKDo.tKswYjFi6HW3VHuINAKNTVq4bv9PBz2MgvCwCvFu8.PfH2", pollen_asthma)
-    cursor.execute(insertQuery)
+    usersToInsert.append((name, surname, sex, email, birth, height, weight, disease_start, type,)) # pollen_asthma, 
 
-    db.commit()
-    cursor.close()
+    # # inserting random data
+    # queryTemplate = "INSERT INTO users (name, surname, sex, email, birth, height, weight, disease_start, password, pollen_asthma, type) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, \"{}\", {}, {})"
+    # insertQuery = queryTemplate.format(v2Q(name), v2Q(surname), v2Q(sex), v2Q(email), v2Q(birth), height, weight, v2Q(disease_start), "$2a$12$VDzKDo.tKswYjFi6HW3VHuINAKNTVq4bv9PBz2MgvCwCvFu8.PfH2", type)
+    # cursor.execute(insertQuery)
+
+    # db.commit()
+    # cursor.close()
 
 def meInsert():
     cursor = db.cursor()
@@ -73,4 +71,23 @@ def meInsert():
     cursor.close()
 
 def dbClose():
+    print("Adding generated users to database...")
+    cursor = db.cursor()
+    
+    rowsStr = ""
+    for user in usersToInsert:
+        # inserting random data
+        
+        # queryTemplate = "INSERT INTO users (name, surname, sex, email, birth, height, weight, disease_start, password, pollen_asthma, type) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, \"{}\", {}, {})"
+        # insertQuery = queryTemplate.format(v2Q(user[0]), v2Q(user[1]), v2Q(user[2]), v2Q(user[3]), v2Q(user[4]), user[5], user[6], v2Q(user[7]), "$2a$12$VDzKDo.tKswYjFi6HW3VHuINAKNTVq4bv9PBz2MgvCwCvFu8.PfH2", user[8], user[9])
+        # cursor.execute(insertQuery)
+
+        rowsStr += "(" + v2Q(user[0]) + "," + v2Q(user[1]) + "," + v2Q(user[2]) + "," + v2Q(user[3]) + "," + v2Q(user[4]) + "," + str(user[5]) + "," + str(user[6]) + "," + v2Q(user[7]) + ",\"" + "$2a$12$VDzKDo.tKswYjFi6HW3VHuINAKNTVq4bv9PBz2MgvCwCvFu8.PfH2" + "\"," + str(user[8]) + "),"
+
+    # cursor.execute("INSERT INTO users (name, surname, sex, email, birth, height, weight, disease_start, password, pollen_asthma, type) VALUES " + rowsStr[:-1])
+    cursor.execute("INSERT INTO users (name, surname, sex, email, birth, height, weight, disease_start, password, type) VALUES " + rowsStr[:-1])
+
+    db.commit()
+    cursor.close()
+
     db.close()

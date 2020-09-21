@@ -14,18 +14,18 @@ import medicinesUsed
 import userHistory
 
 fastRun = True
-numberOfGeneratedUsers = 4 # + 'Dominik'
+numberOfGeneratedUsers = 4 # if set: +='Dominik' as 1
 startTime = time.time()
 
-# Jeśli chcę przełączyć się na tryb dopisywania, a nie nadpisywania to muszę:
-# > Zakomentować dwie linijki usuwające zawartość plików CSV.
-# > Zakomentować 3 linijki dodające nagłówki.
-# > Zakomentować czyszczenie tablic
-# > Ustawić w trzech plikach N na liczbę już wygenerowanych urzytkowników.
+# If I want to switch to append and not overwrite mode then I have to:
+#> Comment out two lines to delete the content of CSV files.
+#> Comment out 3 lines adding headers.
+#> Comment on clearing arrays.
+#> Set the number of users already generated in the seassonDates.py file.
 
 if 1:
     print("Deleting all users...")
-    # truncateTableNamed("users")
+    truncateTableNamed("users")
     print("[1/6]Generating users...")
     # meInsert()
     for _ in range(numberOfGeneratedUsers):
@@ -37,7 +37,7 @@ if 1:
 
     # if 1:
     print("\nDeleting all allergies...")
-    # truncateTableNamed("allergies")
+    truncateTableNamed("allergies")
     print("[2/6]Generating allergies...")
     allergiesInsert()
     allergies.dbClose()
@@ -47,7 +47,7 @@ if 1:
 
     # if 0:
     print("\nDeleting all medicinesUsed...")
-    # truncateTableNamed("medicinesUsed")
+    truncateTableNamed("medicinesUsed")
     print("[5/6]Generating medicinesUsed...")
     medicinesUsedInsert()
     medicinesUsed.dbClose()
@@ -55,8 +55,8 @@ if 1:
         print("MedicinesUsed:")
         printTableNamed("medicinesUsed")
     
-# Jeśli to wykonam to musze też wykonać medicinesUsed
-if 0:
+# If I do this, I have to do medicinesUsed as well
+if 1:
     print("\nDeleting all medicines...")
     truncateTableNamed("medicines")
     print("[3/6]Generating medicines...")
@@ -66,7 +66,7 @@ if 0:
         print("Medicines:")
         printTableNamed("medicines")
 
-if 0:
+if 1:
     print("\nDeleting all dosages...")
     truncateTableNamed("dosages")
     print("[4/6]Generating dosages...")
@@ -80,16 +80,14 @@ if 1:
     print("\nRemoving the entire history of users (tables: controlTests, medicineEvents and trends) ...")
     truncateTableNamed("controlTests")
     truncateTableNamed("medicineEvents")
-    # truncateTableNamed("medicinesUsed")
     truncateTableNamed("trends")
     print("[6/6]Generating users history...")
     generateUsersHistory()
-    userHistory.dbClose()
+    # userHistory.dbClose()
     if not fastRun:
         print("Asthma triggers:")
         printTableNamed("controlTests")
         printTableNamed("medicineEvents")
-        # printTableNamed("medicinesUsed")
         printTableNamed("trends")
 
 endTime = time.time()

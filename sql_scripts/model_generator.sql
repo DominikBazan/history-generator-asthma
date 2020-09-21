@@ -50,7 +50,7 @@ CREATE TABLE `users` (
   `weight` SMALLINT,
   `disease_start` DATE,
   `password` VARCHAR(125) NOT NULL,
-  `pollen_asthma` BOOLEAN,
+  `type` SMALLINT,
   PRIMARY KEY (`id_user`)
 );
 
